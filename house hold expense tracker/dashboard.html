@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Household Expense Tracker</title>
+<style>
+  body{font-family: Arial, sans-serif; padding:20px; background:#f5f5f5;}
+  h1,h2{color:#333;}
+  input, select, button{padding:8px; margin:5px;}
+  table{width:100%; border-collapse: collapse; margin-top:10px;}
+  th, td{border:1px solid #ccc; padding:8px; text-align:center;}
+  .budget-overview, .add-expense, .insights{background:#fff; padding:15px; margin-bottom:20px; border-radius:8px; box-shadow:0 2px 5px rgba(0,0,0,0.1);}
+  #budget-progress{height:20px; background:green; margin-top:5px; border-radius:5px;}
+</style>
+</head>
+<body>
+
+<h1>Household Expense Tracker</h1>
+
+<div class="budget-overview">
+  <h2>Step 1: Enter Your Total Budget</h2>
+  <input type="number" id="total-budget" placeholder="Enter total budget">
+  <p>Spent: ₹<span id="spent-amount">0</span></p>
+  <p>Remaining: ₹<span id="remaining-amount">0</span></p>
+  <div id="budget-progress"></div>
+</div>
+
+<div class="add-expense">
+  <h2>Step 2: Add Expense</h2>
+  <select id="expense-category">
+    <option value="" disabled selected>Select Category</option>
+    <option value="Food">Food</option>
+    <option value="Rent">Rent</option>
+    <option value="Bills">Bills</option>
+    <option value="Shopping">Shopping</option>
+    <option value="Travel">Travel</option>
+    <option value="Education">Education</option>
+    <option value="Health">Health</option>
+    <option value="Misc">Misc</option>
+  </select>
+  <select id="payment-method">
+    <option value="" disabled selected>Payment Method</option>
+    <option value="Cash">Cash</option>
+    <option value="Card">Card</option>
+    <option value="Bank">Bank</option>
+  </select>
+  <input type="number" id="expense-amount" placeholder="Amount spent">
+  <input type="text" id="expense-notes" placeholder="Notes (optional)">
+  <button id="add-expense-btn">Add Expense</button>
+</div>
+
+<div class="expense-table">
+  <h2>Expense List</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>Category</th>
+        <th>Amount</th>
+        <th>Payment Method</th>
+        <th>Notes</th>
+        <th>Action</th>
+      </tr>
+    </thead>
+    <tbody id="expense-list"></tbody>
+  </table>
+</div>
+
+<div class="insights">
+  <h2>Insights & Suggestions</h2>
+  <p id="insight-msg">No insights yet.</p>
+</div>
+
+<script>
+let totalBudget = 0;
+let expenses = [];
+
+const totalBudgetInput = document.getElementById('total-budget');
+const spentAmountEl = document.getElementById('spent-amount');
+const remainingAmountEl = document.getElementById('remaining-amount');
+const budgetProgress = document.getElementById('budget-progress');
+
+const categorySelect = document.getElementById('expense-category');
+const paymentSelect = document.getElementById('payment-method');
+const amountInput = document.getElementById('expense-amount');
+const notesInput = document.getElementById('expense-notes');
+const addExpenseBtn = document.getElementById('add-expense-btn');
+
+const expenseListTbody = document.getElementById('expense-list');
+const insightMsg = document.getElementById('insight-msg');
+
+// ===== Update total budget =====
+totalBudgetInput.addEventListener('input', ()=>{
+    totalBudget = parseFloat(totalBudgetInput.value) || 0;
+    updateDashboard();
+});
+
+// ===== Add Expense =====
+addExpenseBtn.addEventListener('click', ()=>{
+    const category = categorySelect.value;
+    const method = paymentSelect.value;
+    const amount = parseFloat(amountInput.value);
+    const notes = notesInput.value.trim();
+
+    if(!category || !method || !amount || amount <=0){
+        alert('Please enter valid category, payment method, and amount.');
+        return;
+    }
+
+    expenses.push({category, method, amount, notes});
+    updateDashboard();
+
+    categorySelect.value='';
+    paymentSelect.value='';
+    amountInput.value='';
+    notesInput.value='';
+});
+
+// ===== Delete Expense =====
+function deleteExpense(idx){
+    expenses.splice(idx,1);
+    updateDashboard();
+}
+window.deleteExpense = deleteExpense;
+
+// ===== Update Dashboard =====
+function updateDashboard(){
+    renderExpenseTable();
+    updateBudgetOverview();
+    generateInsights();
+}
+
+// ===== Render Expense Table =====
+function renderExpenseTable(){
+    expenseListTbody.innerHTML='';
+    expenses.forEach((exp, idx)=>{
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+            <td>${exp.category}</td>
+            <td>₹${exp.amount}</td>
+            <td>${exp.method}</td>
+            <td>${exp.notes}</td>
+            <td><button onclick="deleteExpense(${idx})">Delete</button></td>
+        `;
+        expenseListTbody.appendChild(tr);
+    });
+}
+
+// ===== Update Budget Overview =====
+function updateBudgetOverview(){
+    const spent = expenses.reduce((sum,e)=>sum+e.amount,0);
+    spentAmountEl.innerText = spent;
+    const remaining = (totalBudget - spent).toFixed(2);
+    remainingAmountEl.innerText = remaining;
+
+    const percent = totalBudget ? Math.min((spent/totalBudget)*100,100) : 0;
+    budgetProgress.style.width = percent+'%';
+    budgetProgress.style.background = percent<70 ? 'green' : percent<90 ? 'orange' : 'red';
+}
+
+// ===== Generate Insights =====
+function generateInsights(){
+    const spent = expenses.reduce((sum,e)=>sum+e.amount,0);
+    const remaining = totalBudget - spent;
+
+    const categoryTotals = {};
+    expenses.forEach(e=>{
+        categoryTotals[e.category] = (categoryTotals[e.category]||0)+e.amount;
+    });
+
+    let highestCategory='', maxAmount=0;
+    for(let cat in categoryTotals){
+        if(categoryTotals[cat]>maxAmount){
+            highestCategory=cat;
+            maxAmount=categoryTotals[cat];
+        }
+    }
+
+    let msg = `Total Spent: ₹${spent}, Remaining: ₹${remaining.toFixed(2)}.`;
+    if(highestCategory){
+        msg += ` Highest spending: ${highestCategory} ₹${maxAmount}.`;
+        msg += ` Suggested saving for future: ₹${Math.max(0,remaining).toFixed(2)}.`;
+    }
+    if(remaining<0){
+        msg += " ⚠️ You are overspending!";
+    }
+
+    insightMsg.innerText = msg;
+}
+
+</script>
+
+</body>
+</html>
